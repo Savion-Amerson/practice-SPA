@@ -2,6 +2,17 @@ import { Header, Nav, Main, Footer } from "./components";
 import * as state from "./store";
 import Navigo from "navigo";
 import { capitalize } from "lodash";
+import axios from "axios";
+
+import "./env";
+
+// axios
+//   .get(`https://api.github.com/users/${process.env.GITHUB_USERNAME}/repos`, {
+//     headers: {
+//       Authorization: `token ${process.env.GITHUB_TOKEN}`
+//     }
+//   })
+//   .then(response => console.log(response.data));
 
 const router = new Navigo(window.location.origin);
 
@@ -15,12 +26,24 @@ function render(st = state.Home) {
   router.updatePageLinks();
 }
 
-render(state.Home);
+// render(state.Home);
+
+// get data from an API endpoint
+// axios
+//   .get("https://jsonplaceholder.typicode.com/posts")
+//   // handle the response from the API
+//   .then(response => {
+//     // for each post in the response Array,
+//     response.data.forEach(post => {
+//       // add it to state.Blog.posts
+//       state.Blog.posts.push(post);
+//     });
+//   });
 
 // add menu toggle to bars icon in nav bar
-document.querySelector(".fa-bars").addEventListener("click", () => {
-  document.querySelector("nav > ul").classList.toggle("hidden--mobile");
-});
+// document.querySelector(".fa-bars").addEventListener("click", () => {
+//   document.querySelector("nav > ul").classList.toggle("hidden--mobile");
+// });
 
 // array of pictures for gallery
 const dogPictures = [
@@ -90,9 +113,64 @@ const dogPictures = [
 //   });
 // });
 
+// router
+//   .on({
+//     ":page": params => render(state[capitalize(params.page)]),
+//     "/": () => render(state.Home)
+//   })
+//   .resolve();
+
+router.hooks({
+  before: (done, params) => {
+    const page =
+      // eslint-disable-next-line no-prototype-builtins
+      params && params.hasOwnProperty("page")
+        ? capitalize(params.page)
+        : "Home";
+
+    switch (page) {
+      case "Blog":
+        state.Blog.posts = [];
+        axios
+          .get("https://jsonplaceholder.typicode.com/posts/")
+          .then(response => {
+            response.data.forEach(post => {
+              state.Blog.posts.push(post);
+            });
+            done();
+            // console.log(state.Blog.posts);
+          })
+          .catch(err => console.log(err));
+        break;
+
+      case "Home":
+        axios
+          .get(
+            `https://api.openweathermap.org/data/2.5/weather?appid=${process.env.WEATHER_API_KEY}&q=st.%20louis`
+          )
+          .then(response => {
+            state.Home.weather = {};
+            // console.log(response, state.Home.weather);
+            state.Home.weather.city = response.data.name;
+            state.Home.weather.temp = response.data.main.temp;
+            state.Home.weather.feelsLike = response.data.main.feels_like;
+            state.Home.weather.humidity = response.data.main.humidity;
+            state.Home.weather.description =
+              response.data.weather[0]["description"];
+            done();
+          })
+          .catch(err => console.log(err));
+        break;
+
+      default:
+        done();
+    }
+  }
+});
+
 router
   .on({
-    ":page": params => render(state[capitalize(params.page)]),
-    "/": () => render(state.Home)
+    "/": () => render(state.Home),
+    ":page": params => render(state[capitalize(params.page)])
   })
   .resolve();
